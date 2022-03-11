@@ -69,6 +69,7 @@ S3_MODEL_FOLDER = ''  # Path to the bucket folder  models are saved
 N_FOLDS = 3  # number of folds to use for cross validation
 AVG_MODEL = None
 RASTER_RESULTS_FOLDER = ''  # Define folder where rasterized predictions will be saved to
+MAX_WORKERS = os.cpu_count() - 2  # Try to avoid saturating all my cpu cores
 
 
 def check_grid():
@@ -101,7 +102,8 @@ def convert_to_eopatches():
         "is_data_mask": "IS_DATA",
         "clp_name": "CLP",
         "clm_name": "CLM",
-        "max_workers": 6
+        #"max_workers": 6
+        "max_workers": MAX_WORKERS
     }
     convert_tiff_to_eopatches(tiffs_to_eop_config)
 
