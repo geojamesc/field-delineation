@@ -174,6 +174,7 @@ def add_reference_data_to_patches():
         "reference_data_gpkg_filename": REFERENCE_DATA_FILEPATH
     }
 
+    # TODO - check if it`s the grid or the roi that is being used here
     rasterise_gsaa(rasterise_gsaa_config)
 
     # Check the contents of the EOPatches to see if adding reference data was succesfful.
@@ -212,11 +213,12 @@ def sample_patchlets_from_eopatches():
         "mask_feature_name": "EXTENT",
         "buffer": 50,
         "patch_size": 256,
-        "num_samples": 10,
+        #"num_samples": 10,
+        "num_samples": 25,  # where we have a small set of input data (tiffs) set this higher?
         "max_retries": 10,
         "fraction_valid": 0.4,
         "cloud_coverage": 0.05,
-        "max_workers": 12
+        "max_workers": MAX_WORKERS
     }
 
     sample_patchlets(sampling_patchlets_config)
@@ -247,16 +249,16 @@ def create_npz_file_from_patchlets():
         "output_folder": NPZ_FILES_FOLDER,
         "output_dataframe": METADATA_DATAFRAME,
         "chunk_size": 10,
-        "max_workers": 12
+        "max_workers": MAX_WORKERS
     }
 
     patchlets_to_npz_files(patchlets_to_npz_config)
 
     # Make some sanity checks on the created NPZ files
-    filesystem.listdir(NPZ_FILES_FOLDER)
-    npzfile = np.load(filesystem.openbin(os.path.join(NPZ_FILES_FOLDER, 'patchlets_field_delineation_0.npz')))
-    print(list(npzfile.keys()))
-    print(pd.read_csv(filesystem.openbin(METADATA_DATAFRAME)).head())
+    # filesystem.listdir(NPZ_FILES_FOLDER)
+    # npzfile = np.load(filesystem.openbin(os.path.join(NPZ_FILES_FOLDER, 'patchlets_field_delineation_0.npz')))
+    # print(list(npzfile.keys()))
+    # print(pd.read_csv(filesystem.openbin(METADATA_DATAFRAME)).head())
 
 
 def calculate_normalization_stats_per_timestamp():
@@ -579,10 +581,10 @@ def merge_utm_zones():
 def run_end_to_end_workflow():
     #check_grid()
     #convert_to_eopatches()
-    add_reference_data_to_patches()
-    # sample_patchlets_from_eopatches()
+    #add_reference_data_to_patches()
+    #sample_patchlets_from_eopatches()
     # create_npz_file_from_patchlets()
-    # calculate_normalization_stats_per_timestamp()
+    calculate_normalization_stats_per_timestamp()
     # split_patchlets_for_cross_validation()
     # train_resunet_model()
     # make_prediction()
