@@ -155,19 +155,19 @@ def get_tiffs_to_eopatches_workflow(config: TiffsToEopatchConfig, delete_tiffs: 
     sh_config = set_sh_config(config)
 
     import_bands = [(ImportFromTiff((FeatureType.DATA, band),
-                                    folder=f's3://{config.bucket_name}/{config.tiffs_folder}',
+                                    folder=f'{config.tiffs_folder}',
                                     config=sh_config), f'Import band {band}')
                     for band in config.band_names]
     import_clp = (ImportFromTiff((FeatureType.DATA, config.clp_name),
-                                 folder=f's3://{config.bucket_name}/{config.tiffs_folder}',
+                                 folder=f'{config.tiffs_folder}',
                                  config=sh_config), f'Import {config.clp_name}')
 
     import_mask = (ImportFromTiff((FeatureType.MASK, config.mask_name),
-                                  folder=f's3://{config.bucket_name}/{config.tiffs_folder}',
+                                  folder=f'{config.tiffs_folder}',
                                   config=sh_config), f'Import {config.mask_name}')
 
     rearrange_bands = (RearrangeBands(), 'Swap time and band axis')
-    add_timestamps = (AddTimestampsUpdateTime(f's3://{config.bucket_name}/{config.tiffs_folder}'), 'Load timestamps')
+    add_timestamps = (AddTimestampsUpdateTime(f'{config.tiffs_folder}'), 'Load timestamps')
 
     merge_bands = (MergeFeatureTask(
         input_features={FeatureType.DATA: config.band_names},
@@ -179,8 +179,8 @@ def get_tiffs_to_eopatches_workflow(config: TiffsToEopatchConfig, delete_tiffs: 
 
     calculate_clm = (CloudMasking(), 'Get CLM mask from CLP')
 
-    save_task = (SaveTask(path=f's3://{config.bucket_name}/{config.eopatches_folder}', config=sh_config,
-                          overwrite_permission=OverwritePermission.OVERWRITE_FEATURES),  'Save EOPatch')
+    save_task = (SaveTask(path=f'{config.eopatches_folder}', config=sh_config,
+                          overwrite_permission=OverwritePermission.OVERWRITE_FEATURES), 'Save EOPatch')
 
     filenames = [f'{band}.tif' for band in config.band_names] + \
                 [f'{config.mask_name}.tif', f'{config.clp_name}.tif', 'userdata.json']
