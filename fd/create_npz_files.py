@@ -32,9 +32,8 @@ class CreateNpzConfig(BaseConfig):
 
 def extract_npys(eopatch_path: str, cfg: CreateNpzConfig) -> Tuple:
     """ Return X, y_boundary, y_extent, y_distance, timestamps, eop_names numpy arrays for this patchlet."""
-    filesystem = prepare_filesystem(cfg)
     try:
-        eop = EOPatch.load(eopatch_path, filesystem=filesystem, lazy_loading=True)
+        eop = EOPatch.load(eopatch_path, lazy_loading=True)
         n_timestamps = len(eop.timestamp)
         X_data = eop.data['BANDS']
         y_boundary = np.repeat(eop.mask_timeless['BOUNDARY'][np.newaxis, ...], n_timestamps, axis=0)
@@ -72,16 +71,23 @@ def concatenate_npys(results: List[Tuple]) -> Dict[str, np.ndarray]:
 
 def save_into_chunks(config: CreateNpzConfig, npys_dict: Dict[str, np.ndarray]) -> None:
     eopatches = [os.path.basename("_".join(x.split("_")[:-1])) for x in npys_dict['eop_names']]
-    filesystem = prepare_filesystem(config)
     chunk_size = config.chunk_size
     dfs = []
 
-    if not filesystem.isdir(config.output_folder):
-        filesystem.makedirs(config.output_folder)
-    
+    if not os.path.isdir(config.output_folder):
+        os.makedirs(config.output_folder)
+
     for idx, i in enumerate(range(0, len(npys_dict['X']), chunk_size)):
         filename = f'patchlets_field_delineation_{idx}'
-        np.savez(filesystem.openbin(os.path.join(config.output_folder, f'{filename}.npz'), 'wb'),
+        # np.savez(filesystem.openbin(os.path.join(config.output_folder, f'{filename}.npz'), 'wb'),
+        #          X=npys_dict['X'][i:i + chunk_size],
+        #          y_boundary=npys_dict['y_boundary'][i:i + chunk_size],
+        #          y_extent=npys_dict['y_extent'][i:i + chunk_size],
+        #          y_distance=npys_dict['y_distance'][i:i + chunk_size],
+        #          timestamps=npys_dict['timestamps'][i:i + chunk_size],
+        #          eopatches=npys_dict['eop_names'][i:i + chunk_size])
+
+        np.savez(os.path.join(config.output_folder, f'{filename}.npz'),
                  X=npys_dict['X'][i:i + chunk_size],
                  y_boundary=npys_dict['y_boundary'][i:i + chunk_size],
                  y_extent=npys_dict['y_extent'][i:i + chunk_size],
@@ -96,7 +102,7 @@ def save_into_chunks(config: CreateNpzConfig, npys_dict: Dict[str, np.ndarray]) 
                                      timestamp=npys_dict['timestamps'][i:i + chunk_size])))
 
     metadata_dir = os.path.dirname(config.output_dataframe)
-    if not filesystem.isdir(metadata_dir):
-        filesystem.makedirs(metadata_dir)
-        
-    pd.concat(dfs).to_csv(filesystem.open(config.output_dataframe, 'w'), index=False)
+    if not os.path.isdir(metadata_dir):
+        os.makedirs(metadata_dir)
+
+    pd.concat(dfs).to_csv(config.output_dataframe, index=False)
