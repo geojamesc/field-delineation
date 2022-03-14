@@ -143,7 +143,8 @@ class SamplePatchlets(EOTask):
 
 def prepare_eopatches_paths(sampling_config: SamplingConfig) -> List[str]:
     eopatches_paths = [os.path.join(sampling_config.eopatches_location, eop_name)
-                       for eop_name in prepare_filesystem(sampling_config).listdir(sampling_config.eopatches_location)]
+                       for eop_name in os.listdir(sampling_config.eopatches_location)]
+
 
     if not sampling_config.sample_positive:
         area_geometry = gpd.read_file(sampling_config.area_geometry_file)
@@ -155,7 +156,6 @@ def prepare_eopatches_paths(sampling_config: SamplingConfig) -> List[str]:
 
 
 def sample_patch(eop_path: str, sampling_config: SamplingConfig) -> None:
-    filesystem = prepare_filesystem(sampling_config)
     task = SamplePatchlets(feature=(FeatureType.MASK_TIMELESS, sampling_config.mask_feature_name),
                            buffer=sampling_config.buffer,
                            patch_size=sampling_config.patch_size,
@@ -171,10 +171,10 @@ def sample_patch(eop_path: str, sampling_config: SamplingConfig) -> None:
     eop_name = os.path.basename(eop_path)
     LOGGER.info(f'Processing eop: {eop_name}')
     try:
-        eop = EOPatch.load(eop_path, filesystem=filesystem, lazy_loading=True)
+        eop = EOPatch.load(eop_path, lazy_loading=True)
         patchlets = task.execute(eop)
         for i, patchlet in enumerate(patchlets):
-            patchlet.save(os.path.join(sampling_config.output_path, f'{eop_name}_{i}'), filesystem=filesystem)
+            patchlet.save(os.path.join(sampling_config.output_path, f'{eop_name}_{i}'))
     except KeyError as e:
         LOGGER.error(f'Key error. Could not find key: {e}')
     except ValueError as e:
