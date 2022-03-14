@@ -584,7 +584,7 @@ def run_end_to_end_workflow():
     #add_reference_data_to_patches()
     #sample_patchlets_from_eopatches()
     # create_npz_file_from_patchlets()
-    calculate_normalization_stats_per_timestamp()
+    calculate_normalization_stats_per_timestamp()  # TODO - got to here
     # split_patchlets_for_cross_validation()
     # train_resunet_model()
     # make_prediction()
