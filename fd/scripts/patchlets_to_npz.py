@@ -35,7 +35,6 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 
-
 def patchlets_to_npz_files(config: dict):
     """ Utility function to convert patchlets to npz files
 
@@ -53,11 +52,9 @@ def patchlets_to_npz_files(config: dict):
         output_dataframe=config['output_dataframe'],
         chunk_size=config['chunk_size'])
 
-    filesystem = prepare_filesystem(npz_config)
-    
     LOGGER.info('Read patchlet names from bucket')
     patchlets = [os.path.join(npz_config.patchlets_folder, eop_name)
-                for eop_name in filesystem.listdir(npz_config.patchlets_folder)]
+                for eop_name in os.listdir(npz_config.patchlets_folder)]
 
     partial_fn = partial(extract_npys, cfg=npz_config)
 
