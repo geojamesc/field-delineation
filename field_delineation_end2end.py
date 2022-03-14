@@ -46,18 +46,19 @@ SH_CLIENT_SECRET = ''
 # sh_config.aws_access_key_id = AWS_ACCESS_KEY_ID
 # sh_config.save()
 #
-base_config = BaseConfig(bucket_name=BUCKET_NAME,
-                         aws_region=AWS_REGION,
-                         aws_access_key_id=AWS_ACCESS_KEY_ID,
-                         aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-
-filesystem = prepare_filesystem(base_config)
+# base_config = BaseConfig(bucket_name=BUCKET_NAME,
+#                          aws_region=AWS_REGION,
+#                          aws_access_key_id=AWS_ACCESS_KEY_ID,
+#                          aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+#
+# filesystem = prepare_filesystem(base_config)
 
 
 # Global constants
 PROJECT_DATA_ROOT = '/home/james/Work/FieldBoundaries/input_data_110322'  # Local folder where project related  files are/will be stored !!
 INPUT_AOI_FILEPATH = os.path.join(PROJECT_DATA_ROOT, 'cyl-province-border.geojson')
 GRID_PATH = os.path.join(PROJECT_DATA_ROOT, 'cyl-grid-definition.gpkg')
+REFERENCE_DATA_FILEPATH = os.path.join(PROJECT_DATA_ROOT, 'fields.gpkg')
 TIME_INTERVAL = ['2021-08-03', '2021-11-19']  # Set the time interval for which the data will be downloaded YYYY-MM-DD
 EOPATCHES_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'eopatches')  # Location on the bucket to which EOPatches will be saved.
 BATCH_TIFFS_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'tiffs') # Location on the bucket where downloaded TIFF images will be stored
@@ -102,7 +103,6 @@ def convert_to_eopatches():
         "is_data_mask": "IS_DATA",
         "clp_name": "CLP",
         "clm_name": "CLM",
-        #"max_workers": 6
         "max_workers": MAX_WORKERS
     }
     convert_tiff_to_eopatches(tiffs_to_eop_config)
@@ -140,61 +140,21 @@ def add_reference_data_to_patches():
      * boundary mask (buffered raster minus raster pixelated)
      * normalised distance transform
 
-    ## Requirement: Import shapefile to DB for faster processing
-
-    GSAA data for Lithuania is a rather large shapefile (~2.4G), which poses several issues:
-      * multiprocessing the eopatches with EOExecutor explodes with too high RAM usage
-      * loading the dataset takes a lot of time (even-though it happens only once, the dataset is practically copied for each process with multiprocessing, which takes time)
-      * additionally, spatial index has to be build in order to make the process of extracting geometries for each eopatch fast
-
-    Instead, we set up a local postgre database (with postgis extension), imported shapefile into it, created spatial index, and created a simple EOTask that queries the db to get the geometries intersecting the eopatch bbox.
-
-    The following was done on amazon EC2 to install everything needed, set-up the db and import shapefile. If running this locally or on an another input geometry, make sure to adjust teh username, the CRSs and of course the paths to the files:
-
-    ```bash
-    # install docker, add permissions to user ubuntu to run docker commands
-    sudo apt install docker.io
-    sudo service docker start
-    sudo usermod -a -G docker ubuntu
-
-    #so that user's permissions get picked up
-    sudo reboot
-
-    #pull the docker image with everything ready (postgre, postgis, ...)
-    docker pull kartoza/postgis
-
-    #run the container
-    docker run --name "postgis" -p 25431:5432 -e POSTGRES_USER=niva -e POSTGRES_PASS=n1v4 -e POSTGRES_DBNAME=gisdb -e POSTGRES_MULTIPLE_EXTENSIONS=postgis,hstore -d -t kartoza/postgis
-
-    #some more things to install in order to import shp to db
-    sudo apt install postgis
-
-    #there are some issues with EPSG 3346 (Lithuanian crs), so in order to bypass them, I have converted the geometries to WGS84, using ogr2ogr, so I had to install gdal
-    sudo apt install gdal-bin
-
-    #convert to WGS84
-    ogr2ogr -t_srs epsg:4326 -lco ENCODING=UTF-8 -f 'Esri Shapefile' gsaa_4326.shp bucket/Declared_parcels_2019_03_S4C.shp
-
-    #create sql for import
-    shp2pgsql -s 4326 -I gsaa_4326.shp gsaa > gsaa.sql
-
-    #run the sql to import
-    psql -h localhost -U niva -p 25431 -d gisdb -f gsaa.sql
-    ```
-
-    Now the data is in db `gisdb` in table `gsaa`.
-
+     Note: in this localised version, in a departure from original codebase, original vector data is loaded in from
+     a GeoPackage rather than from a PostGIS database. This approach may not scale if the original vector data is large
+     e.g. country-wide. If this is the case the approach of storing/accessing the data from a PostGIS database should
+     probably be used
     """
     rasterise_gsaa_config = {
         "bucket_name": BUCKET_NAME,
         "aws_access_key_id": AWS_ACCESS_KEY_ID,
         "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
         "aws_region": AWS_REGION,
-        "database": "gisdb",
-        "user": "niva",
-        "password": "n1v4",
-        "host": "localhost",
-        "port": "25431",
+        "database": "",
+        "user": "",
+        "password": "",
+        "host": "",
+        "port": "",
         "crs": "epsg:4326",
         "grid_filename": GRID_PATH,
         "eopatches_folder": EOPATCHES_FOLDER,
@@ -202,13 +162,18 @@ def add_reference_data_to_patches():
         "extent_feature": ["mask_timeless", "EXTENT"],
         "boundary_feature": ["mask_timeless", "BOUNDARY"],
         "distance_feature": ["data_timeless", "DISTANCE"],
-        "height": 1100,
-        "width": 1100,
+        #"height": 1100,
+        "height": 2974,
+        #"width": 1100,
+        "width": 2974,
         "buffer_poly": -10,
         "no_data_value": 0,
         "disk_radius": 2,
-        "max_workers": 12
+        "max_workers": MAX_WORKERS,
+        "roi_gpkg_filename": GRID_PATH,
+        "reference_data_gpkg_filename": REFERENCE_DATA_FILEPATH
     }
+
     rasterise_gsaa(rasterise_gsaa_config)
 
     # Check the contents of the EOPatches to see if adding reference data was succesfful.
@@ -612,18 +577,18 @@ def merge_utm_zones():
 
 
 def run_end_to_end_workflow():
-    check_grid()
-    convert_to_eopatches()
+    #check_grid()
+    #convert_to_eopatches()
     add_reference_data_to_patches()
-    sample_patchlets_from_eopatches()
-    create_npz_file_from_patchlets()
-    calculate_normalization_stats_per_timestamp()
-    split_patchlets_for_cross_validation()
-    train_resunet_model()
-    make_prediction()
-    post_processing()
-    create_vectors()
-    merge_utm_zones()
+    # sample_patchlets_from_eopatches()
+    # create_npz_file_from_patchlets()
+    # calculate_normalization_stats_per_timestamp()
+    # split_patchlets_for_cross_validation()
+    # train_resunet_model()
+    # make_prediction()
+    # post_processing()
+    # create_vectors()
+    # merge_utm_zones()
 
 
 if __name__ == "__main__":
