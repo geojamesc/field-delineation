@@ -24,8 +24,7 @@ class ComputeNormalizationConfig(BaseConfig):
 
 
 def stats_per_npz_ts(npz_file: str, config: ComputeNormalizationConfig) -> Dict[str, np.array]:
-    filesystem = prepare_filesystem(config)
-    data = np.load(filesystem.openbin(os.path.join(config.npz_files_folder, npz_file), 'rb'), allow_pickle=True)
+    data = np.load(os.path.join(config.npz_files_folder, npz_file), 'rb', allow_pickle=True)
     features = data['X']
 
     return {'mean': np.mean(features, axis=(1, 2)),
