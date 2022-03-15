@@ -8,6 +8,7 @@
 # file in the root directory of this source tree.
 #
 
+import os
 import sys
 import json
 import logging
@@ -52,9 +53,7 @@ def calculate_normalization_factors(config: dict):
         metadata_file=config['metadata_file']
         )
 
-    filesystem = prepare_filesystem(norm_config)
-
-    npz_files = filesystem.listdir(norm_config.npz_files_folder)
+    npz_files = os.listdir(norm_config.npz_files_folder)
 
     LOGGER.info('Compute stats per patchlet')
     partial_fn = partial(stats_per_npz_ts, config=norm_config)
@@ -78,11 +77,11 @@ def calculate_normalization_factors(config: dict):
     # add "month" period
     df['month']=df.timestamp.dt.to_period("M")
 
-    norm_cols = [norm.format(band) 
-                for norm in ['perc_99_b{0}_mean', 
-                            'mean_b{0}_mean', 
-                            'median_b{0}_mean', 
-                            'std_b{0}_mean'] for band in range(4)]
+    norm_cols = [norm.format(band)
+                 for norm in ['perc_99_b{0}_mean',
+                              'mean_b{0}_mean',
+                              'median_b{0}_mean',
+                              'std_b{0}_mean'] for band in range(4)]
 
     aggs = {}
     stat_cols = []
@@ -107,7 +106,7 @@ def calculate_normalization_factors(config: dict):
     df['norm_meanstd_std_b0'], df['norm_meanstd_std_b1'], df['norm_meanstd_std_b2'], df['norm_meanstd_std_b3'] = zip(*map(norms, df.month))
 
     LOGGER.info(f'Read metadata file {norm_config.metadata_file}')
-    with filesystem.open(norm_config.metadata_file, 'rb') as fcsv:
+    with open(norm_config.metadata_file, 'rb') as fcsv:
         df_info = pd.read_csv(fcsv)
 
     df_info['timestamp'] = pd.to_datetime(df_info.timestamp)
@@ -119,7 +118,8 @@ def calculate_normalization_factors(config: dict):
     new_df = df_info.merge(df, how='inner', on=['patchlet', 'timestamp'])
 
     LOGGER.info('Overwrite metadata file with new file')
-    with filesystem.open(norm_config.metadata_file, 'w') as fcsv:
+
+    with open(norm_config.metadata_file, 'w') as fcsv:
         new_df.to_csv(fcsv, index=False)
 
 
