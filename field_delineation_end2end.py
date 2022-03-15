@@ -275,13 +275,13 @@ def calculate_normalization_stats_per_timestamp():
         "aws_region": AWS_REGION,
         "npz_files_folder": NPZ_FILES_FOLDER,
         "metadata_file": METADATA_DATAFRAME,
-        "max_workers": 12
+        "max_workers": MAX_WORKERS
     }
 
     calculate_normalization_factors(calculate_normalization_factors_config)
 
     # Check that normalization factors were added to the metadata dataframe
-    print(pd.read_csv(filesystem.openbin(METADATA_DATAFRAME)).head())
+    #print(pd.read_csv(filesystem.openbin(METADATA_DATAFRAME)).head())
 
 
 def split_patchlets_for_cross_validation():
@@ -303,15 +303,15 @@ def split_patchlets_for_cross_validation():
         "npz_folder": NPZ_FILES_FOLDER,
         "n_folds": N_FOLDS,
         "seed": 2,
-        "max_workers": 12
+        "max_workers": MAX_WORKERS
     }
 
     k_fold_split(k_fold_split_config)
 
     # Some sanity checks:
-    for fold in range(N_FOLDS):
-        print(f'In Fold {fold+1}:')
-        print(filesystem.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))
+    # for fold in range(N_FOLDS):
+    #     print(f'In Fold {fold+1}:')
+    #     print(filesystem.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))
 
 
 def train_resunet_model():
@@ -583,10 +583,10 @@ def run_end_to_end_workflow():
     #convert_to_eopatches()
     #add_reference_data_to_patches()
     #sample_patchlets_from_eopatches()
-    # create_npz_file_from_patchlets()
-    calculate_normalization_stats_per_timestamp()  # TODO - got to here
-    # split_patchlets_for_cross_validation()
-    # train_resunet_model()
+    #create_npz_file_from_patchlets()
+    #calculate_normalization_stats_per_timestamp()
+    #split_patchlets_for_cross_validation()
+    train_resunet_model()  # TODO - got to here
     # make_prediction()
     # post_processing()
     # create_vectors()
