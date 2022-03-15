@@ -75,10 +75,7 @@ NORMALIZER = dict(to_meanstd=partial(normalize_meanstd, subtract='mean'),
 
 def fold_split(chunk: str, df: pd.DataFrame, config: SplitConfig) -> None:
     """ Extract from chunk file patchlets to each fold """
-
-    filesystem = prepare_filesystem(config)
-
-    data = np.load(filesystem.openbin(os.path.join(config.npz_folder, chunk)), allow_pickle=True)
+    data = np.load(os.path.join(config.npz_folder, chunk), allow_pickle=True)
 
     for fold in range(1, config.n_folds + 1):
 
@@ -91,9 +88,12 @@ def fold_split(chunk: str, df: pd.DataFrame, config: SplitConfig) -> None:
 
             fold_folder = os.path.join(config.npz_folder, f'fold_{fold}')
 
-            filesystem.makedir(fold_folder, recreate=True)
+            #filesystem.makedir(fold_folder, recreate=True)
+            if not os.path.exists(fold_folder):
+                os.makedirs(fold_folder)
 
-            np.savez(filesystem.openbin(os.path.join(fold_folder, chunk), 'wb'), **patchlets)
+            #np.savez(filesystem.openbin(os.path.join(fold_folder, chunk), 'wb'), **patchlets)
+            np.savez(os.path.join(fold_folder, chunk), **patchlets)
 
             del idx_fold, patchlets
 
@@ -111,12 +111,13 @@ def get_dataset(config: TrainingConfig, fold: int, augment: bool, num_parallel: 
     """
     assert config.normalize in ['to_meanstd', 'to_medianstd', 'to_perc']
 
-    filesystem = prepare_filesystem(config)
-
     data = dict(X='features', y_extent='y_extent', y_boundary='y_boundary', y_distance='y_distance')
 
+    # dataset = npz_dir_dataset(os.path.join(config.npz_folder, f'fold_{fold}'), data, metadata_path=config.metadata_path,
+    #                           fold=fold, randomize=randomize, num_parallel=num_parallel, filesystem=filesystem, npz_from_s3=npz_from_s3)
+
     dataset = npz_dir_dataset(os.path.join(config.npz_folder, f'fold_{fold}'), data, metadata_path=config.metadata_path,
-                              fold=fold, randomize=randomize, num_parallel=num_parallel, filesystem=filesystem, npz_from_s3=npz_from_s3)
+                              fold=fold, randomize=randomize, num_parallel=num_parallel, npz_from_s3=npz_from_s3)
 
     normalizer = NORMALIZER[config.normalize]
 
@@ -201,10 +202,10 @@ def initialise_callbacks(config: TrainingConfig,
                    name=f'{config.model_name}-leftoutfold-{fold}',
                    project=config.wandb_project, 
                    sync_tensorboard=True)
-        
-    callbacks = [tensorboard_callback, 
-                 checkpoint_callback, 
-#                  visualisation_callback
-                ] + ([WandbCallback()] if config.wandb_id is not None else [])
+
+    callbacks = [tensorboard_callback,
+                 checkpoint_callback,
+                 #                  visualisation_callback
+                 ] + ([WandbCallback()] if config.wandb_id is not None else [])
     
     return model_path, callbacks 
