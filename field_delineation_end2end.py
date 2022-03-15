@@ -66,9 +66,8 @@ PATCHLETS_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'patchlets')  # Location on t
 NPZ_FILES_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'patchlets_npz')  # Location on the bucket to which the NPZ files will be saved.
 METADATA_DATAFRAME = os.path.join(PROJECT_DATA_ROOT, 'patchlet-info.csv')  # Filepath to which the metadata dataframe will be saved as a CSV
 LOCAL_MODEL_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'niva-cyl-models')  # Local path to the folder where models are saved
-S3_MODEL_FOLDER = ''  # Path to the bucket folder  models are saved
+S3_MODEL_FOLDER = PROJECT_DATA_ROOT  # Path to the bucket folder  models are saved
 N_FOLDS = 3  # number of folds to use for cross validation
-AVG_MODEL = None
 RASTER_RESULTS_FOLDER = ''  # Define folder where rasterized predictions will be saved to
 MAX_WORKERS = os.cpu_count() - 2  # Try to avoid saturating all my cpu cores
 
@@ -333,6 +332,7 @@ def train_resunet_model():
     """
     CHKPT_FOLDER = None  # Path to pretrained model if exists
 
+    # TODO - check these params
     train_k_folds_config = {
         "bucket_name": BUCKET_NAME,
         "aws_access_key_id": AWS_ACCESS_KEY_ID,
@@ -340,8 +340,10 @@ def train_resunet_model():
         "aws_region": AWS_REGION,
         "wandb_id": None,
         "npz_folder": NPZ_FILES_FOLDER,
-        "npz_from_s3": True,
-        "num_parallel": 100,
+        #"npz_from_s3": True,
+        "npz_from_s3": False,  # TODO - check this is appropriate
+        #"num_parallel": 100,
+        "num_parallel": MAX_WORKERS,  # TODO - check this is appropriate
         "metadata_path": METADATA_DATAFRAME,
         "model_folder": LOCAL_MODEL_FOLDER,
         "model_s3_folder": S3_MODEL_FOLDER,
@@ -349,8 +351,10 @@ def train_resunet_model():
         "input_shape": [256, 256, 4],
         "n_classes": 2,
         "batch_size": 8,
-        "iterations_per_epoch": 1500,  # Change based on the size of the AOI
-        "num_epochs": 30,
+        #"iterations_per_epoch": 1500,  # Change based on the size of the AOI
+        "iterations_per_epoch": 2,  # TODO need to set to more appropriate value
+        #"num_epochs": 30,
+        "num_epochs": 2,  # TODO need to set to more appropriate value
         "model_name": "resunet-a",
         "reference_names": ["extent","boundary","distance"],
         "augmentations_feature": ["flip_left_right", "flip_up_down", "rotate", "brightness"],
@@ -387,16 +391,22 @@ def train_resunet_model():
     # **A model is trained for each fold and then the weights of these models are averaged out to create
     # a single model that is applied to the whole AOI.**
     AVG_MODELS = [x for x in os.listdir(LOCAL_MODEL_FOLDER) if 'avg' in x]
-    global AVG_MODEL
     AVG_MODEL = AVG_MODELS[0]
+    print('After training AVG_MODEL is: {0}'.format(AVG_MODEL))
 
 
 def make_prediction():
     """
     [9] Make prediction
     """
+    # find the name of the avg model that the training step created
+    # resunet-a-avg_YYYY-MM-DD-HH-MM-SS under the LOCAL_MODEL_FOLDER
+    AVG_MODEL = None
+    AVG_MODELS = [x for x in os.listdir(LOCAL_MODEL_FOLDER) if 'avg' in x]
+    AVG_MODEL = AVG_MODELS[0]
 
-    # JRCC: AVG_MODEL is resunet-a-avg_YYYY-MM-DD-HH-MM-SS and we have it set by train_resunet_model()
+    print('AVG_MODEL: ', AVG_MODEL)
+
     if AVG_MODEL is not None:
         prediction_config = {
             "bucket_name": BUCKET_NAME,
@@ -414,8 +424,8 @@ def make_prediction():
             "model_version": "v1",
             "temp_model_path": LOCAL_MODEL_FOLDER,
             "normalise": "to_meanstd",
-            "height": 1128,  # TODO - check why height here difft from height in rasterise_gsaa_config
-            "width": 1128,  # TODO - check why width here difft from height in rasterise_gsaa_config
+            "height": 1128,  # TODO - check why height here difft from height in add_reference_data_to_patches()::rasterise_gsaa_config [1100]
+            "width": 1128,  # TODO - check why width here difft from height in add_reference_data_to_patches()::rasterise_gsaa_config [1100]
             "pad_buffer": 14,
             "crop_buffer": 26,
             "n_channels": 4,
@@ -423,7 +433,6 @@ def make_prediction():
             "metadata_path": METADATA_DATAFRAME,
             "batch_size": 1
         }
-
 
         logging.getLogger().setLevel(logging.INFO)
         pred = run_prediction(prediction_config)
@@ -586,8 +595,8 @@ def run_end_to_end_workflow():
     #create_npz_file_from_patchlets()
     #calculate_normalization_stats_per_timestamp()
     #split_patchlets_for_cross_validation()
-    train_resunet_model()  # TODO - got to here
-    # make_prediction()
+    #train_resunet_model()
+    make_prediction()  # TODO - got to here
     # post_processing()
     # create_vectors()
     # merge_utm_zones()
