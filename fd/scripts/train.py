@@ -13,6 +13,7 @@ import sys
 import json
 import logging
 import argparse
+import shutil
 from datetime import datetime
 from functools import reduce
 
@@ -74,13 +75,17 @@ def train_k_folds(config: dict):
         seed=config['seed']
     )
 
-    if training_config.wandb_id is not None:
-        os.system(f'wandb login {training_config.wandb_id}')
+    # if training_config.wandb_id is not None:
+    #     os.system(f'wandb login {training_config.wandb_id}')
 
     LOGGER.info('Create K TF datasets')
+    # ds_folds = [get_dataset(training_config, fold=fold, augment=True, randomize=True,
+    #                         num_parallel=config['num_parallel'], npz_from_s3=config['npz_from_s3'])
+    #             for fold in tqdm(range(1, training_config.n_folds + 1))]
+
     ds_folds = [get_dataset(training_config, fold=fold, augment=True, randomize=True,
-                            num_parallel=config['num_parallel'], npz_from_s3=config['npz_from_s3']) 
-                for fold in tqdm(range(1, training_config.n_folds+1))]
+                            num_parallel=config['num_parallel'], npz_from_s3=False)
+                for fold in tqdm(range(1, training_config.n_folds + 1))]
 
     folds = list(range(training_config.n_folds))
 
@@ -130,15 +135,27 @@ def train_k_folds(config: dict):
         del fold_val, folds_train, ds_train, ds_val, ds_folds_train
 
     LOGGER.info('Copy model directories to bucket')
-    filesystem = prepare_filesystem(training_config)
+    #filesystem = prepare_filesystem(training_config)
 
     for model_path in model_paths:
         model_name = os.path.basename(model_path)
-        filesystem.makedirs(f'{training_config.model_s3_folder}/{model_name}', recreate=True)
-        copy_dir(training_config.model_folder, 
-                f'{model_name}',
-                filesystem, 
-                f'{training_config.model_s3_folder}/{model_name}')
+        #filesystem.makedirs(f'{training_config.model_s3_folder}/{model_name}', recreate=True)
+        m_pth = f'{training_config.model_s3_folder}/{model_name}'
+        if not os.path.exists(m_pth):
+            os.makedirs(m_pth)
+        else:
+            shutil.rmtree(m_pth)
+            os.makedirs(m_pth)
+
+        # copy_dir(training_config.model_folder,
+        #          f'{model_name}',
+        #          filesystem,
+        #          f'{training_config.model_s3_folder}/{model_name}')
+
+        copy_dir(training_config.model_folder,
+                 f'{model_name}',
+                 f'{training_config.model_s3_folder}',
+                 f'{model_name}')
 
     LOGGER.info('Create average model')
     weights = [model.net.get_weights() for model in models]
