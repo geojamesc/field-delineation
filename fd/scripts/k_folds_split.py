@@ -8,6 +8,7 @@
 # file in the root directory of this source tree.
 #
 
+import os
 import sys
 import json
 import logging
@@ -49,17 +50,22 @@ def k_fold_split(config: dict):
         seed=config['seed']
     )
 
-    filesystem = prepare_filesystem(split_config)
-
     LOGGER.info(f'Read metadata file {split_config.metadata_path}')
-    with filesystem.open(split_config.metadata_path, 'rb') as fcsv:     
-        df = pd.read_csv(fcsv)      
+    with open(split_config.metadata_path, 'rb') as fcsv:
+        df = pd.read_csv(fcsv)
 
     eops = df.eopatch.unique()
 
     LOGGER.info('Assign folds to eopatches')
     np.random.seed(seed=split_config.seed)
-    fold = np.random.randint(1, high=split_config.n_folds+1, size=len(eops))
+
+    # JRCC - in the case where there are only 3 eopatches, drawing from such a small pool
+    # will not always randomly generate a set of unique values so explicitly define instead
+    if len(eops) == 3:
+        fold = np.array([1, 2, 3])
+    else:
+        fold = np.random.randint(1, high=split_config.n_folds+1, size=len(eops))
+
     eopatch_to_fold_map = dict(zip(eops, fold))
 
     df['fold'] = df['eopatch'].apply(lambda x: eopatch_to_fold_map[x])
@@ -70,14 +76,14 @@ def k_fold_split(config: dict):
     LOGGER.info('Split files into folds')
     partial_fn = partial(fold_split, df=df, config=split_config)
 
-    npz_files = filesystem.listdir(split_config.npz_folder)
+    npz_files = os.listdir(split_config.npz_folder)
 
     npz_files = [npzf for npzf in npz_files if npzf.startswith('patchlets_')]
 
     _ = multiprocess(partial_fn, npz_files, max_workers=config['max_workers'])
 
     LOGGER.info('Update metadata file with fold information')
-    with filesystem.open(split_config.metadata_path, 'w') as fcsv:
+    with open(split_config.metadata_path, 'w') as fcsv:
         df.to_csv(fcsv, index=False)
 
 
@@ -85,10 +91,10 @@ if __name__ == '__main__':
  
     parser = argparse.ArgumentParser(description="Split patchlet dataset into k-folds.\n")
     parser.add_argument(
-    "--config", 
-    type=str, 
-    help="Path to config file with parameters required for k-fold splitting", 
-    required=True
+        "--config",
+        type=str,
+        help="Path to config file with parameters required for k-fold splitting",
+        required=True
     )
     args = parser.parse_args()
     LOGGER.info(f'Reading configuration from {args.config}')
