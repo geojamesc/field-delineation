@@ -405,9 +405,8 @@ def make_prediction():
     AVG_MODELS = [x for x in os.listdir(LOCAL_MODEL_FOLDER) if 'avg' in x]
     AVG_MODEL = AVG_MODELS[0]
 
-    print('AVG_MODEL: ', AVG_MODEL)
-
     if AVG_MODEL is not None:
+        print('AVG_MODEL: ', AVG_MODEL)
         prediction_config = {
             "bucket_name": BUCKET_NAME,
             "aws_access_key_id": AWS_ACCESS_KEY_ID,
@@ -419,7 +418,8 @@ def make_prediction():
             "feature_extent": ["data", "EXTENT_PREDICTED"],
             "feature_boundary": ["data", "BOUNDARY_PREDICTED"],
             "feature_distance": ["data", "DISTANCE_PREDICTED"],
-            "model_path": S3_MODEL_FOLDER,
+            #"model_path": S3_MODEL_FOLDER,
+            "model_path": LOCAL_MODEL_FOLDER,
             "model_name": AVG_MODEL,
             "model_version": "v1",
             "temp_model_path": LOCAL_MODEL_FOLDER,
@@ -433,10 +433,11 @@ def make_prediction():
             "metadata_path": METADATA_DATAFRAME,
             "batch_size": 1
         }
-
         logging.getLogger().setLevel(logging.INFO)
         pred = run_prediction(prediction_config)
         logging.getLogger().setLevel(logging.ERROR)
+    else:
+        print('AVG_MODEL not found')
 
         # Check predictions
         # eops = filesystem.listdir(EOPATCHES_FOLDER)
