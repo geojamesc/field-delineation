@@ -80,10 +80,11 @@ def run_prediction(config: dict):
         metadata_path=config['metadata_path'],
         batch_size=config['batch_size'])
 
-    filesystem = prepare_filesystem(prediction_config) 
+    #filesystem = prepare_filesystem(prediction_config)
 
     LOGGER.info('Load normalisation factors')
-    normalisation_factors = load_metadata(filesystem, prediction_config)
+    #normalisation_factors = load_metadata(filesystem, prediction_config)
+    normalisation_factors = load_metadata(prediction_config)
 
     LOGGER.info('Load grid definition')
     grid_definition = gpd.read_file(config['grid_filename'])
@@ -91,15 +92,22 @@ def run_prediction(config: dict):
     eopatches_list = grid_definition.name.values
 
     LOGGER.info('Load model')
-    model = load_model(filesystem=filesystem, config=prediction_config)
+    #model = load_model(filesystem=filesystem, config=prediction_config)
+    model = load_model(config=prediction_config)
 
     warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
     LOGGER.info('Running predictions')
-    status = process_eopatches(run_prediction_on_eopatch, 
-                               eopatches_list, 
+    # status = process_eopatches(run_prediction_on_eopatch,
+    #                            eopatches_list,
+    #                            config=prediction_config,
+    #                            filesystem=filesystem,
+    #                            model=model,
+    #                            normalisation_factors=normalisation_factors)
+
+    status = process_eopatches(run_prediction_on_eopatch,
+                               eopatches_list,
                                config=prediction_config,
-                               filesystem=filesystem,
                                model=model,
                                normalisation_factors=normalisation_factors)
 
