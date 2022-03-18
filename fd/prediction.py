@@ -190,13 +190,15 @@ def prediction_fn(eop: EOPatch, n_classes: int,
     return eop
 
 
-def load_metadata(filesystem: S3FS, config: PredictionConfig) -> pd.DataFrame:
+#def load_metadata(filesystem: S3FS, config: PredictionConfig) -> pd.DataFrame:
+def load_metadata(config: PredictionConfig) -> pd.DataFrame:
     """ Load DataFrame with info about normalisation factors """
-    metadata_dir = os.path.dirname(config.metadata_path)
-    if not filesystem.exists(metadata_dir):
-        filesystem.makedirs(metadata_dir)
-
-    df = pd.read_csv(filesystem.open(f'{config.metadata_path}'))
+    # metadata_dir = os.path.dirname(config.metadata_path)
+    # if not filesystem.exists(metadata_dir):
+    #     filesystem.makedirs(metadata_dir)
+    #
+    # df = pd.read_csv(filesystem.open(f'{config.metadata_path}'))
+    df = pd.read_csv(f'{config.metadata_path}')
 
     normalisation_factors = df.groupby(pd.to_datetime(df.timestamp).dt.to_period("M")).max()
 
@@ -205,19 +207,23 @@ def load_metadata(filesystem: S3FS, config: PredictionConfig) -> pd.DataFrame:
     return normalisation_factors
 
 
-def load_model(filesystem: S3FS, config: PredictionConfig) -> ResUnetA:
+#def load_model(filesystem: S3FS, config: PredictionConfig) -> ResUnetA:
+def load_model(config: PredictionConfig) -> ResUnetA:
     """ Copy the model locally if not existing and load it """
-    if not os.path.exists(f'{config.temp_model_path}/{config.model_name}'):
-        if not filesystem.exists(f'{config.model_path}/{config.model_name}/checkpoints/'):
-            filesystem.makedirs(f'{config.model_path}/{config.model_name}/checkpoints/')
-        copy_dir(filesystem, f'{config.model_path}/{config.model_name}/checkpoints/',
-                 f'{config.temp_model_path}/{config.model_name}', 'checkpoints')
-        copy_file(filesystem, f'{config.model_path}/{config.model_name}/model_cfg.json',
-                  f'{config.temp_model_path}/{config.model_name}', 'model_cfg.json')
+    # if not os.path.exists(f'{config.temp_model_path}/{config.model_name}'):
+    #     if not filesystem.exists(f'{config.model_path}/{config.model_name}/checkpoints/'):
+    #         filesystem.makedirs(f'{config.model_path}/{config.model_name}/checkpoints/')
+    #     copy_dir(filesystem, f'{config.model_path}/{config.model_name}/checkpoints/',
+    #              f'{config.temp_model_path}/{config.model_name}', 'checkpoints')
+    #     copy_file(filesystem, f'{config.model_path}/{config.model_name}/model_cfg.json',
+    #               f'{config.temp_model_path}/{config.model_name}', 'model_cfg.json')
 
     input_shape = dict(features=[None, config.height, config.width, config.n_channels])
 
-    with open(f'{config.temp_model_path}/{config.model_name}/model_cfg.json', 'r') as jfile:
+    # with open(f'{config.temp_model_path}/{config.model_name}/model_cfg.json', 'r') as jfile:
+    #     model_cfg = json.load(jfile)
+
+    with open(f'{config.model_path}/{config.model_name}/model_cfg.json', 'r') as jfile:
         model_cfg = json.load(jfile)
 
     # initialise model from config, build, compile and load trained weights
@@ -229,15 +235,19 @@ def load_model(filesystem: S3FS, config: PredictionConfig) -> ResUnetA:
     return model
 
 
-def run_prediction_on_eopatch(eopatch_name: str, config: PredictionConfig, filesystem: S3FS, 
+# def run_prediction_on_eopatch(eopatch_name: str, config: PredictionConfig, filesystem: S3FS,
+#                               model: ResUnetA = None, normalisation_factors: pd.DataFrame = None) -> dict:
+def run_prediction_on_eopatch(eopatch_name: str, config: PredictionConfig,
                               model: ResUnetA = None, normalisation_factors: pd.DataFrame = None) -> dict:
     """ Run prediction workflow on one eopatch. Model and dataframe can be provided to avoid loading them every time """
     sh_config = set_sh_config(config)
     if normalisation_factors is None:
-        normalisation_factors = load_metadata(filesystem, config)
+        #normalisation_factors = load_metadata(filesystem, config)
+        normalisation_factors = load_metadata(config)
 
     if model is None:
-        model = load_model(filesystem, config)
+        #model = load_model(filesystem, config)
+        model = load_model(config)
 
     load_ref = all([ref for ref in [config.reference_distance, config.reference_extent, config.reference_boundary]])
     if load_ref:
@@ -246,16 +256,19 @@ def run_prediction_on_eopatch(eopatch_name: str, config: PredictionConfig, files
     else:
         feats = [config.feature_bands, FeatureType.TIMESTAMP, FeatureType.META_INFO, FeatureType.BBOX]
 
-    load_task = LoadTask(path=f's3://{config.bucket_name}/{config.eopatches_folder}',
-                         features=feats,
-                         config=sh_config)
+    load_task = LoadTask(
+        #path=f's3://{config.bucket_name}/{config.eopatches_folder}',
+        path=f'{config.eopatches_folder}',
+        features=feats,
+        config=sh_config)
 
-    save_task = SaveTask(path=f's3://{config.bucket_name}/{config.eopatches_folder}',
-                         features=[config.feature_extent, config.feature_boundary, config.feature_distance,
-                                   FeatureType.META_INFO],
-                         overwrite_permission=OverwritePermission.OVERWRITE_FEATURES,
-                         config=sh_config)
-
+    save_task = SaveTask(
+        #path=f's3://{config.bucket_name}/{config.eopatches_folder}',
+        path=f'{config.eopatches_folder}',
+        features=[config.feature_extent, config.feature_boundary, config.feature_distance,
+                  FeatureType.META_INFO],
+        overwrite_permission=OverwritePermission.OVERWRITE_FEATURES,
+        config=sh_config)
     try:
         eop = load_task.execute(eopatch_folder=eopatch_name)
 
