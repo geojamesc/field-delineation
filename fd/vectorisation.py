@@ -387,15 +387,15 @@ def merging_rows(row_dict: dict, skip_existing: bool = True) -> str:
 
 def run_vectorisation(config: VectorisationConfig) -> List[str]:
     """ Run vectorisation process on entire AOI for the given time intervals """
-    filesystem = prepare_filesystem(config)
+    #filesystem = prepare_filesystem(config)
 
-    LOGGER.info(f'Copy tiff files locally to {config.predictions_dir}')
-    for time_interval in config.time_intervals:
-        if not os.path.exists(f'{config.predictions_dir}/{time_interval}'):
-            if not filesystem.exists(f'{config.tiffs_folder}/{time_interval}/'):
-                filesystem.makedirs(f'{config.tiffs_folder}/{time_interval}/')
-            copy_dir(filesystem, f'{config.tiffs_folder}/{time_interval}/',
-                     f'{config.predictions_dir}/', f'{time_interval}')
+    # LOGGER.info(f'Copy tiff files locally to {config.predictions_dir}')
+    # for time_interval in config.time_intervals:
+    #     if not os.path.exists(f'{config.predictions_dir}/{time_interval}'):
+    #         if not filesystem.exists(f'{config.tiffs_folder}/{time_interval}/'):
+    #             filesystem.makedirs(f'{config.tiffs_folder}/{time_interval}/')
+    #         copy_dir(filesystem, f'{config.tiffs_folder}/{time_interval}/',
+    #                  f'{config.predictions_dir}/', f'{time_interval}')
 
     LOGGER.info(f'Move files to utm folders')
     for time_interval in config.time_intervals:
