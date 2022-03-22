@@ -1,3 +1,4 @@
+import csv
 import logging
 import json
 import os
@@ -141,7 +142,7 @@ def check_grid():
 
 def convert_to_eopatches():
     """
-       [2] Convert to EOPatches
+       [1] Convert to EOPatches
     """
     tiffs_to_eop_config = {
         "bucket_name": BUCKET_NAME,
@@ -183,7 +184,7 @@ def convert_to_eopatches():
 
 def add_reference_data_to_patches():
     """
-    [3] Add GSAA reference data to patches
+    [2] Add GSAA reference data to patches
 
     This step adds GSAA reference data to each EOPatch in vector and raster format.
 
@@ -245,7 +246,7 @@ def add_reference_data_to_patches():
 
 def sample_patchlets_from_eopatches():
     """
-    [4] Sample Patchlets from EOPatches
+    [3] Sample Patchlets from EOPatches
 
     This part samples image chips out of the larger `EOPatches`. A maximum number of chips is sampled randomly from the
     `EOPatch`, depending on the fraction of reference `EXTENT` pixels. A buffer where patchlets are not sampled from
@@ -286,7 +287,7 @@ def sample_patchlets_from_eopatches():
 
 def create_npz_file_from_patchlets():
     """
-    [5] Create .npz files from patchlets
+    [4] Create .npz files from patchlets
 
     This steps creates a series of `.npz` files which join the data and labels sampled in patchlets from the previous
     iteration. A dataframe is created to keep track of the origin of the patchlets, namely which eopatch they come from
@@ -315,7 +316,7 @@ def create_npz_file_from_patchlets():
 
 def calculate_normalization_stats_per_timestamp():
     """
-    [6] Calculate normalization stats per timestamp
+    [5] Calculate normalization stats per timestamp
 
     This step computes the normalisation factors per band per month for the `.npz` files obtained so far.
     These normalisation factors are saved to `.csv` file and will be used at training and validation of the model.
@@ -338,7 +339,7 @@ def calculate_normalization_stats_per_timestamp():
 
 def split_patchlets_for_cross_validation():
     """
-    [7] Split patchlets for k-fold cross-validation
+    [6] Split patchlets for k-fold cross-validation
 
     This step:
 
@@ -361,14 +362,15 @@ def split_patchlets_for_cross_validation():
     k_fold_split(k_fold_split_config)
 
     # Some sanity checks:
-    # for fold in range(N_FOLDS):
-    #     print(f'In Fold {fold+1}:')
-    #     print(filesystem.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))
+    for fold in range(N_FOLDS):
+        print(f'In Fold {fold+1} :')
+        print(os.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))
+        print('\tCount:{0}'.format(len(os.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))))
 
 
 def train_resunet_model():
     """
-    [8] Train a ResUnetA model
+    [7] Train a ResUnetA model
 
     This step  performs training of the `ResUnetA` architecture using the `.npz` files prepared in the previous steps:
 
@@ -405,9 +407,9 @@ def train_resunet_model():
         "n_classes": 2,
         "batch_size": 8,
         #"iterations_per_epoch": 1500,  # Change based on the size of the AOI
-        "iterations_per_epoch": 2,  # TODO need to set to more appropriate value
+        "iterations_per_epoch": 5,  # TODO what does this define?
         #"num_epochs": 30,
-        "num_epochs": 2,  # TODO need to set to more appropriate value
+        "num_epochs": 5,  # TODO what does this define?
         "model_name": "resunet-a",
         "reference_names": ["extent","boundary","distance"],
         "augmentations_feature": ["flip_left_right", "flip_up_down", "rotate", "brightness"],
@@ -450,7 +452,7 @@ def train_resunet_model():
 
 def make_prediction():
     """
-    [9] Make prediction
+    [8] Make prediction
     """
     # find the name of the avg model that the training step created
     # resunet-a-avg_YYYY-MM-DD-HH-MM-SS under the LOCAL_MODEL_FOLDER
@@ -471,16 +473,15 @@ def make_prediction():
             "feature_extent": ["data", "EXTENT_PREDICTED"],
             "feature_boundary": ["data", "BOUNDARY_PREDICTED"],
             "feature_distance": ["data", "DISTANCE_PREDICTED"],
-            #"model_path": S3_MODEL_FOLDER,
             "model_path": LOCAL_MODEL_FOLDER,
             "model_name": AVG_MODEL,
             "model_version": "v1",
             "temp_model_path": LOCAL_MODEL_FOLDER,
             "normalise": "to_meanstd",
-            "height": 1128,  # TODO - check why height here difft from height in add_reference_data_to_patches()::rasterise_gsaa_config [1100]
-            "width": 1128,  # TODO - check why width here difft from height in add_reference_data_to_patches()::rasterise_gsaa_config [1100]
-            "pad_buffer": 14,  #TODO if we are using 1100x1100 images this is OK?
-            "crop_buffer": 26,
+            "height": 1128,  # JRCC - this is 1100 + (pad_buffer x 2) i.e. 1100 + (14 x 2) = 1128 ??
+            "width": 1128,  # JRCC - this is 1100 + (pad_buffer x 2) i.e. 1100 + (14 x 2) = 1128 ??
+            "pad_buffer": 14,  # JRCC - not changing this!
+            "crop_buffer": 26,  # JRCC - not changing this!
             "n_channels": 4,
             "n_classes": 2,
             "metadata_path": METADATA_DATAFRAME,
@@ -492,36 +493,10 @@ def make_prediction():
     else:
         print('AVG_MODEL not found')
 
-        # Check predictions
-        # eops = filesystem.listdir(EOPATCHES_FOLDER)
-        # eop = EOPatch.load(os.path.join(EOPATCHES_FOLDER, eops[4]), filesystem=filesystem)
-        #
-        # tidx = 12 # select one timestamp
-        # viz_factor = 2.5
-        # fig, axs = plt.subplots(figsize=(15, 5), ncols=3, sharey=True)
-        # axs[0].imshow(viz_factor * eop.data['BANDS'][tidx][..., [2,1,0]]/10000)
-        # axs[0].set_title('RGB bands')
-        # axs[1].imshow(eop.data['EXTENT_PREDICTED'][tidx].squeeze(), vmin=0, vmax=1)
-        # axs[1].set_title('Extent')
-        # axs[2].imshow(eop.data['BOUNDARY_PREDICTED'][tidx].squeeze(), vmin=0, vmax=1)
-        # axs[2].set_title('Boundary');
-        #
-        # tidx = 12  # select one timestamp
-        # viz_factor = 3.5
-        # fig, axs = plt.subplots(figsize=(15, 10), ncols=2, sharey=True)
-        # axs[0].imshow(viz_factor * eop.data['BANDS'][tidx][:200, :200, [2,1,0]]/10000)
-        # axs[0].set_title('RGB bands')
-        # axs[0].imshow(eop.data['EXTENT_PREDICTED'][tidx].squeeze()[:200, :200], vmin=0, vmax=1, alpha=.2)
-        # axs[0].set_title('Extent')
-        # axs[1].imshow(viz_factor * eop.data['BANDS'][tidx][:200, :200, [2,1,0]]/10000)
-        # axs[1].set_title('RGB bands')
-        # axs[1].imshow(eop.data['BOUNDARY_PREDICTED'][tidx].squeeze()[:200, :200], vmin=0, vmax=1, alpha=.2)
-        # axs[1].set_title('Boundary')
-
 
 def post_processing():
     """
-    [10] Postprocessing
+    [9] Postprocessing
 
     Predictions for each timestamp within the requested period have been saved to the EOPatches. We need to
     temporally merge these predictions to get one prediction for each area.
@@ -557,7 +532,7 @@ def post_processing():
 
 def create_vectors():
     """
-    [11] Creating vectors
+    [10] Creating vectors
 
     The following steps are executed to vectorise and spatially merge the vectors:
     * Create a weights.tiff file, based on upscaled tiff dimension and overlap size that is used to assign gradual
@@ -605,7 +580,7 @@ def create_vectors():
 
 def merge_utm_zones():
     """
-    [12] Merge UTM zones
+    [11] Merge UTM zones
 
      <div class="alert alert-block alert-info"><b>This step is only needed if the AOI spans multiple UTM zones</b>
 
@@ -656,13 +631,24 @@ def run_end_to_end_workflow():
     #     path_to_patchlets=PATCHLETS_FOLDER,
     #     out_shp_fname=os.path.join(PROJECT_DATA_ROOT, 'patchlets_extents.shp')
     # )
-    print("[Step 4- ")
-    create_npz_file_from_patchlets()
+
+    #print("[Step 4- CREATING .NPZ FILES FROM PATCHLETS")
+    #create_npz_file_from_patchlets()
+
+    # print("[Step 5- CALCULATE NORMALIZATION STATS PER TIMESTAMP")
     #calculate_normalization_stats_per_timestamp()
-    #split_patchlets_for_cross_validation()
+
+    # print("[Step 6- SPLIT PATCHLETS FOR K-FOLD CROSS-VALIDATION")
+    # split_patchlets_for_cross_validation()
+
+    #print("[Step 7- TRAIN RESUNET MODEL")
     #train_resunet_model()
-    #make_prediction()  # TODO - when we ran this step it did not work...
-    #post_processing()  # TODO - not yet tested this step...
+
+    #print("[Step 8- MAKE PREDICTION")
+    #make_prediction()
+
+    print("[Step 9- POST PROCESSING")
+    post_processing()  # TODO - not yet tested this step...
     #create_vectors()  # TODO - not yet tested this step...
     #merge_utm_zones()
 
