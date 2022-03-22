@@ -122,27 +122,26 @@ def rasterise_gsaa(config: dict):
 
 
 if __name__ == '__main__':
-    pass
-    # parser = argparse.ArgumentParser(description="Add GSAA reference data to eopatches.\n\n"
-    #     "This script assumes the GSAA vectors are served in a postgis database. Do the following to set-up the database.\n\n"
-    #     "$ docker pull kartoza/postgis\n"
-    #     "$ docker run --name ""postgis"" -p 25431:5432 -e POSTGRES_USER=niva -e POSTGRES_PASS=n1v4 -e POSTGRES_DBNAME=gisdb -e POSTGRES_MULTIPLE_EXTENSIONS=postgis,hstore -d -t kartoza/postgis\n"
-    #     "$ sudo apt install postgis\n"
-    #     "$ sudo apt install gdal-bin\n"
-    #     "$ ogr2ogr -t_srs epsg:4326 -lco ENCODING=UTF-8 -f 'Esri Shapefile' gsaa_4326.shp bucket/Declared_parcels_2019_03_S4C.shp\n"
-    #     "$ shp2pgsql -s 4326 -I gsaa_4326.shp gsaa > gsaa.sql\n"
-    #     "$ psql -h localhost -U niva -p 25431 -d gisdb -f gsaa.sql", formatter_class=RawTextHelpFormatter)
-    #
-    # parser.add_argument(
-    #     "--config",
-    #     type=str,
-    #     help="Path to config file with rasterisation parameters",
-    #     required=True
-    # )
-    # args = parser.parse_args()
-    #
-    # LOGGER.info(f'Reading configuration from {args.config}')
-    # with open(args.config, 'r') as jfile:
-    #     cfg_dict = json.load(jfile)
-    #
-    # rasterise_gsaa(cfg_dict)
+    parser = argparse.ArgumentParser(description="Add GSAA reference data to eopatches.\n\n"
+        "This script assumes the GSAA vectors are served in a postgis database. Do the following to set-up the database.\n\n"
+        "$ docker pull kartoza/postgis\n"
+        "$ docker run --name ""postgis"" -p 25431:5432 -e POSTGRES_USER=niva -e POSTGRES_PASS=n1v4 -e POSTGRES_DBNAME=gisdb -e POSTGRES_MULTIPLE_EXTENSIONS=postgis,hstore -d -t kartoza/postgis\n"
+        "$ sudo apt install postgis\n"
+        "$ sudo apt install gdal-bin\n"
+        "$ ogr2ogr -t_srs epsg:4326 -lco ENCODING=UTF-8 -f 'Esri Shapefile' gsaa_4326.shp bucket/Declared_parcels_2019_03_S4C.shp\n"
+        "$ shp2pgsql -s 4326 -I gsaa_4326.shp gsaa > gsaa.sql\n"
+        "$ psql -h localhost -U niva -p 25431 -d gisdb -f gsaa.sql", formatter_class=RawTextHelpFormatter)
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to config file with rasterisation parameters",
+        required=True
+    )
+    args = parser.parse_args()
+
+    LOGGER.info(f'Reading configuration from {args.config}')
+    with open(args.config, 'r') as jfile:
+        cfg_dict = json.load(jfile)
+
+    rasterise_gsaa(cfg_dict)
