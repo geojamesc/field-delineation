@@ -52,7 +52,6 @@ from .utils import BaseConfig, set_sh_config
 #     height: int = 1100
 #     disk_radius: int = 2
 
-
 @dataclass
 class GsaaToEopatchConfigGpkg(BaseConfig):
     database: str
@@ -125,12 +124,15 @@ class GPKG2Vector(EOTask):
         roi = gpd.read_file(self.roi_gpkg_fn)  # test download.geojson')
         vec_orig['geometry'] = vec_orig.buffer(0)
         df = vec_orig
-        # df = vec_orig.clip(roi)
 
-        utm_crs = eopatch.bbox.crs.pyproj_crs()
-        project = pyproj.Transformer.from_proj(utm_crs, df.crs)
+        # TODO rather than as we have commented out here, should we not clip or do a spatial query against the complete
+        #  fields geodataframe so as to pull back only those fields that fall within the extent of the eopatch like
+        #   what is happening when the gdf is being pulled from the PostGIS db?
+        #df = vec_orig.clip(roi)
 
-        query_bbox = transform(project.transform, eopatch.bbox.geometry)
+        #utm_crs = eopatch.bbox.crs.pyproj_crs()
+        #project = pyproj.Transformer.from_proj(utm_crs, df.crs)
+        #query_bbox = transform(project.transform, eopatch.bbox.geometry)
 
         eopatch[self.out_vector] = df
 
