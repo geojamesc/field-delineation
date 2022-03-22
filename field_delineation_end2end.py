@@ -1,10 +1,17 @@
 import logging
-import os
 import json
+import os
+import pickle
+
 import numpy as np
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
+import fiona
+from fiona.crs import from_epsg
+from shapely.geometry import mapping
+from shapely.wkt import loads
+
 from eolearn.core import EOPatch
 from sentinelhub import SHConfig
 from shapely.geometry import Polygon
@@ -28,6 +35,54 @@ from fd.utils_plot import (draw_vector_timeless,
                            draw_mask,
                            get_extent
                            )
+
+
+def write_patchlets_extents_to_shapefile(path_to_patchlets, out_shp_fname, patchlets_crs=32630):
+    """
+        for data validation purposes dump to a shapefile the extent of each of the patchlets sampled from the patches
+    """
+
+    my_schema = {
+        "geometry": "Polygon",
+        "properties": {
+            "id": "int",
+            "patchlet": "str"
+        }
+    }
+
+    my_driver = "ESRI Shapefile"
+    my_crs = from_epsg(patchlets_crs)
+
+    if os.path.exists(path_to_patchlets):
+        with fiona.open(out_shp_fname, "w", driver=my_driver, crs=my_crs, schema=my_schema) as my_collection:
+            id = 1
+            for root, folder, files in os.walk(path_to_patchlets):
+                for fn in files:
+                    if fn == 'bbox.pkl':
+                        pth_to_patchlet_bbox_pkl_fn = os.path.join(root, fn)
+                        patchlet_name = os.path.split(root)[-1]
+                        with open(pth_to_patchlet_bbox_pkl_fn, 'rb') as inpf:
+                            bbox = pickle.load(inpf)
+                            min_x, min_y, max_x, max_y = bbox.min_x, bbox.min_y, bbox.max_x, bbox.max_y
+                            wkt = """POLYGON(({0} {1},{2} {3},{4} {5},{6} {7},{0} {1}))""".format(
+                                min_x,
+                                min_y,
+                                max_x,
+                                min_y,
+                                max_x,
+                                max_y,
+                                min_x,
+                                max_y
+                            )
+                            my_collection.write({
+                                "geometry": mapping(loads(wkt)),
+                                "properties": {
+                                    "id": id,
+                                    "patchlet": patchlet_name
+                                }
+                            })
+                            id += 1
+
 logging.getLogger().setLevel(logging.ERROR)
 
 
@@ -55,9 +110,9 @@ SH_CLIENT_SECRET = ''
 
 
 # Global constants
-PROJECT_DATA_ROOT = '/home/james/Work/FieldBoundaries/input_data_110322'  # Local folder where project related  files are/will be stored !!
-INPUT_AOI_FILEPATH = os.path.join(PROJECT_DATA_ROOT, 'cyl-province-border.geojson')
-GRID_PATH = os.path.join(PROJECT_DATA_ROOT, 'cyl-grid-definition.gpkg')
+PROJECT_DATA_ROOT = '/home/james/Work/FieldBoundaries/spain_split_up_data'  # Local folder where project related  files are/will be stored !!
+INPUT_AOI_FILEPATH = os.path.join(PROJECT_DATA_ROOT, 'aoi.geojson')
+GRID_PATH = os.path.join(PROJECT_DATA_ROOT, 'grid.gpkg')
 REFERENCE_DATA_FILEPATH = os.path.join(PROJECT_DATA_ROOT, 'fields.gpkg')
 TIME_INTERVAL = ['2021-08-03', '2021-11-19']  # Set the time interval for which the data will be downloaded YYYY-MM-DD
 EOPATCHES_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'eopatches')  # Location on the bucket to which EOPatches will be saved.
@@ -154,17 +209,16 @@ def add_reference_data_to_patches():
         "password": "",
         "host": "",
         "port": "",
-        "crs": "epsg:4326",
+        #"crs": "epsg:4326",
+        "crs": "epsg:32630",
         "grid_filename": GRID_PATH,
         "eopatches_folder": EOPATCHES_FOLDER,
         "vector_feature": ["vector_timeless", "GSAA_ORIGINAL"],
         "extent_feature": ["mask_timeless", "EXTENT"],
         "boundary_feature": ["mask_timeless", "BOUNDARY"],
         "distance_feature": ["data_timeless", "DISTANCE"],
-        #"height": 1100,
-        "height": 2974,
-        #"width": 1100,
-        "width": 2974,
+        "height": 1100,
+        "width": 1100,
         "buffer_poly": -10,
         "no_data_value": 0,
         "disk_radius": 2,
@@ -212,8 +266,7 @@ def sample_patchlets_from_eopatches():
         "mask_feature_name": "EXTENT",
         "buffer": 50,
         "patch_size": 256,
-        #"num_samples": 10,
-        "num_samples": 25,  # where we have a small set of input data (tiffs) set this higher?
+        "num_samples": 10,
         "max_retries": 10,
         "fraction_valid": 0.4,
         "cloud_coverage": 0.05,
@@ -426,7 +479,7 @@ def make_prediction():
             "normalise": "to_meanstd",
             "height": 1128,  # TODO - check why height here difft from height in add_reference_data_to_patches()::rasterise_gsaa_config [1100]
             "width": 1128,  # TODO - check why width here difft from height in add_reference_data_to_patches()::rasterise_gsaa_config [1100]
-            "pad_buffer": 14,
+            "pad_buffer": 14,  #TODO if we are using 1100x1100 images this is OK?
             "crop_buffer": 26,
             "n_channels": 4,
             "n_classes": 2,
@@ -485,17 +538,18 @@ def post_processing():
         "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
         "aws_region": AWS_REGION,
         "grid_filename": GRID_PATH,
-        "time_intervals": {"MAY": ["2021-05-01", "2021-05-31"]},
+        #"time_intervals": {"MAY": ["2021-05-01", "2021-05-31"]},
+        "time_intervals": None,  # TODO we have data from 2021-08-03 to 2021-11-19
         "eopatches_folder": EOPATCHES_FOLDER,
         "tiffs_folder": RASTER_RESULTS_FOLDER,
         "feature_extent": ["data", "EXTENT_PREDICTED"],
         "feature_boundary": ["data", "BOUNDARY_PREDICTED"],
         "model_version": "v1",
-        "max_cloud_coverage": 0.10,
+        "max_cloud_coverage": 0.10,  # TODO on denmark data we upped this to 0.25
         "percentile": 50,
         "scale_factor": 2,
         "disk_size": 2,
-        "max_workers": 12
+        "max_workers": MAX_WORKERS
     }
 
     run_post_processing(postprocessing_config)
@@ -524,15 +578,15 @@ def create_vectors():
         "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
         "aws_region": AWS_REGION,
         "tiffs_folder": RASTER_RESULTS_FOLDER,
-        "time_intervals": ["MAY"],
-        "utms": ["32634"], # List all the different UTM zones within the AOI
+        "time_intervals": ["MAY"],  # TODO - what do we put here?
+        "utms": ["32634"], # List all the different UTM zones within the AOI  # TODO - needs to be 32630?
         "shape": [4400, 4400],
         "buffer": [200, 200],
         "weights_file": os.path.join(PROJECT_DATA_ROOT, "weights.tiff"),
         "vrt_dir": PROJECT_DATA_ROOT,
         "predictions_dir": os.path.join(PROJECT_DATA_ROOT, "fd-predictions"),
         "contours_dir": os.path.join(PROJECT_DATA_ROOT, "fd-contours"),
-        "max_workers": 8,
+        "max_workers": MAX_WORKERS,
         "chunk_size": 500,
         "chunk_overlap": 10,
         "threshold": 0.6,
@@ -580,7 +634,7 @@ def merge_utm_zones():
         "resulting_crs": "",  # !! Choose an appropriate meter-based CRS  that covers the AOI !!
         "max_area": 4153834.1,
         "simplify_tolerance": 2.5,
-        "n_workers": 16,
+        "n_workers": MAX_WORKERS,
         "overlap_buffer": -0.0001,
         "zone_buffer": 0.00001
     }
@@ -590,17 +644,27 @@ def merge_utm_zones():
 
 def run_end_to_end_workflow():
     #check_grid()
-    #convert_to_eopatches()
-    #add_reference_data_to_patches()
-    #sample_patchlets_from_eopatches()
-    #create_npz_file_from_patchlets()
+    # print("[Step 1 - CONVERTING DATA TO EOPATCHES")
+    # convert_to_eopatches()
+    #
+    # print("[Step 2 - ADDING REFERENCE DATA TO EOPATCHES")
+    # add_reference_data_to_patches()
+    #
+    # print("[Step 3- SAMPLE PATCHLETS FROM EOPATCHES")
+    # sample_patchlets_from_eopatches()
+    # write_patchlets_extents_to_shapefile(
+    #     path_to_patchlets=PATCHLETS_FOLDER,
+    #     out_shp_fname=os.path.join(PROJECT_DATA_ROOT, 'patchlets_extents.shp')
+    # )
+    print("[Step 4- ")
+    create_npz_file_from_patchlets()
     #calculate_normalization_stats_per_timestamp()
     #split_patchlets_for_cross_validation()
     #train_resunet_model()
-    make_prediction()  # TODO - got to here
-    # post_processing()
-    # create_vectors()
-    # merge_utm_zones()
+    #make_prediction()  # TODO - when we ran this step it did not work...
+    #post_processing()  # TODO - not yet tested this step...
+    #create_vectors()  # TODO - not yet tested this step...
+    #merge_utm_zones()
 
 
 if __name__ == "__main__":
