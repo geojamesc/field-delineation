@@ -59,13 +59,7 @@ def k_fold_split(config: dict):
     LOGGER.info('Assign folds to eopatches')
     np.random.seed(seed=split_config.seed)
 
-    # JRCC - in the case where there are only 3 eopatches, drawing from such a small pool
-    # will not always randomly generate a set of unique values so explicitly define instead
-    if len(eops) == 3:
-        fold = np.array([1, 2, 3])
-    else:
-        fold = np.random.randint(1, high=split_config.n_folds+1, size=len(eops))
-
+    fold = np.random.randint(1, high=split_config.n_folds+1, size=len(eops))
     eopatch_to_fold_map = dict(zip(eops, fold))
 
     df['fold'] = df['eopatch'].apply(lambda x: eopatch_to_fold_map[x])
