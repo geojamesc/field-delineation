@@ -553,8 +553,10 @@ def create_vectors():
         "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
         "aws_region": AWS_REGION,
         "tiffs_folder": RASTER_RESULTS_FOLDER,
-        "time_intervals": ["MAY"],  # TODO - what do we put here?
-        "utms": ["32634"], # List all the different UTM zones within the AOI  # TODO - needs to be 32630?
+        #"time_intervals": ["MAY"],  # TODO - what do we put here? - seems to be the AUTUMN21 key from time_intervals dict in prev step
+        "time_intervals": ["AUTUMN21"],
+        #"utms": ["32634"], # List all the different UTM zones within the AOI
+        "utms": ["32630"],  # TODO - needs to be 32630 in our case?
         "shape": [4400, 4400],
         "buffer": [200, 200],
         "weights_file": os.path.join(PROJECT_DATA_ROOT, "weights.tiff"),
@@ -564,13 +566,40 @@ def create_vectors():
         "max_workers": MAX_WORKERS,
         "chunk_size": 500,
         "chunk_overlap": 10,
-        "threshold": 0.6,
+        "threshold": 0.6,  # do we need to modify the value of this?
         "cleanup": True,
         "skip_existing": True,
         "rows_merging": True
     }
 
-    vectorise(vectorize_config)
+    # JRCC - do some validation to make sure we have created/populated required output folders for the vectorization
+    # i.e.
+    # ~/Work/FieldBoundaries/spain_split_up_data/fd-contours
+    # ~/Work/FieldBoundaries/spain_split_up_data/fd-predictions/AUTUMN21
+
+    have_contours_dir = False
+    have_predictions_dir = False
+
+    if os.path.exists(vectorize_config["contours_dir"]):
+        have_contours_dir = True
+
+    if os.path.exists(vectorize_config["predictions_dir"]):
+        if os.path.exists(os.path.join(vectorize_config["predictions_dir"], vectorize_config["time_intervals"][0])):
+            have_predictions_dir = True
+        else:
+            print("predictions_dir: {0} exists but subfolder: {1} not found - please copy from results folder".format(
+                vectorize_config["predictions_dir"],
+                os.path.join(vectorize_config["predictions_dir"], vectorize_config["time_intervals"][0])
+            )
+            )
+    else:
+        print("predictions_dir: {0} does not exist - please create".format(vectorize_config["predictions_dir"]))
+
+    # we have the required folders so can proceeed
+    if have_predictions_dir and have_contours_dir:
+        vectorise(vectorize_config)
+    else:
+        print("ABORTED as required predictions_dir and contours_dir are missing or unpopulated...")
 
     # Check the vector file
     # vectors = gpd.read_file(os.path.join(PROJECT_DATA_ROOT, 'fd-contours', 'merged_MAY_32634.gpkg'))
@@ -653,6 +682,7 @@ def run_end_to_end_workflow():
     print("[Step 10- CREATE VECTORS")
     create_vectors()
 
+    # skip this step for now
     #merge_utm_zones()
 
 
