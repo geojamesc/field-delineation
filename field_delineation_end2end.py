@@ -124,7 +124,7 @@ METADATA_DATAFRAME = os.path.join(PROJECT_DATA_ROOT, 'patchlet-info.csv')  # Fil
 LOCAL_MODEL_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'niva-cyl-models')  # Local path to the folder where models are saved
 S3_MODEL_FOLDER = PROJECT_DATA_ROOT  # Path to the bucket folder  models are saved
 N_FOLDS = 3  # number of folds to use for cross validation
-RASTER_RESULTS_FOLDER = ''  # Define folder where rasterized predictions will be saved to
+RASTER_RESULTS_FOLDER = os.path.join(PROJECT_DATA_ROOT, 'results', 'Spain')  # Define folder where rasterized predictions will be saved to
 MAX_WORKERS = os.cpu_count() - 2  # Try to avoid saturating all my cpu cores
 
 
@@ -514,13 +514,13 @@ def post_processing():
         "aws_region": AWS_REGION,
         "grid_filename": GRID_PATH,
         #"time_intervals": {"MAY": ["2021-05-01", "2021-05-31"]},
-        "time_intervals": None,  # TODO we have data from 2021-08-03 to 2021-11-19
+        "time_intervals": {"AUTUMN21": ["2021-08-01", "2021-12-01"]},  # we have data from 2021-08-03 to 2021-11-19
         "eopatches_folder": EOPATCHES_FOLDER,
         "tiffs_folder": RASTER_RESULTS_FOLDER,
         "feature_extent": ["data", "EXTENT_PREDICTED"],
         "feature_boundary": ["data", "BOUNDARY_PREDICTED"],
         "model_version": "v1",
-        "max_cloud_coverage": 0.10,  # TODO on denmark data we upped this to 0.25
+        "max_cloud_coverage": 0.10,  # TODO on denmark data we upped this to 0.25, set this accordingly?
         "percentile": 50,
         "scale_factor": 2,
         "disk_size": 2,
@@ -647,9 +647,12 @@ def run_end_to_end_workflow():
     #print("[Step 8- MAKE PREDICTION")
     #make_prediction()
 
-    print("[Step 9- POST PROCESSING")
-    post_processing()  # TODO - not yet tested this step...
-    #create_vectors()  # TODO - not yet tested this step...
+    #print("[Step 9- POST PROCESSING")
+    #post_processing()
+
+    print("[Step 10- CREATE VECTORS")
+    create_vectors()
+
     #merge_utm_zones()
 
 
