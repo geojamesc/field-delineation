@@ -3,6 +3,7 @@ import logging
 import json
 import os
 import pickle
+from distutils.dir_util import copy_tree
 
 import numpy as np
 import geopandas as gpd
@@ -362,10 +363,10 @@ def split_patchlets_for_cross_validation():
     k_fold_split(k_fold_split_config)
 
     # Some sanity checks:
-    for fold in range(N_FOLDS):
-        print(f'In Fold {fold+1} :')
-        print(os.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))
-        print('\tCount:{0}'.format(len(os.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))))
+    #for fold in range(N_FOLDS):
+    #    print(f'In Fold {fold+1} :')
+    #    print(os.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))
+    #    print('\tCount:{0}'.format(len(os.listdir(os.path.join(NPZ_FILES_FOLDER, f'fold_{fold+1}')))))
 
 
 def train_resunet_model():
@@ -528,6 +529,11 @@ def post_processing():
     }
 
     run_post_processing(postprocessing_config)
+
+    # copy output for next processing step
+    from_directory = RASTER_RESULTS_FOLDER
+    to_directory = os.path.join(PROJECT_DATA_ROOT, 'fd-predictions')
+    copy_tree(from_directory, to_directory)
 
 
 def create_vectors():
