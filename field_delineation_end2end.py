@@ -566,7 +566,7 @@ def create_vectors():
         "shape": [4400, 4400],
         "buffer": [200, 200],
         "weights_file": os.path.join(PROJECT_DATA_ROOT, "weights.tiff"),
-        "vrt_dir": PROJECT_DATA_ROOT,
+        "vrt_dir": ".", #!Edit depending on project root and execute location? SF
         "predictions_dir": os.path.join(PROJECT_DATA_ROOT, "fd-predictions"),
         "contours_dir": os.path.join(PROJECT_DATA_ROOT, "fd-contours"),
         "max_workers": MAX_WORKERS,
