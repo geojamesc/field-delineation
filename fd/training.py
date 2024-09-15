@@ -185,6 +185,9 @@ def initialise_callbacks(config: TrainingConfig,
                                                              save_freq='epoch',
                                                              save_weights_only=True)
 
+    # Training metric outputs
+    csv_logger = tf.keras.callbacks.CSVLogger(os.path.join(model_path, 'training_metrics.csv')) #SF added
+
     full_config = dict(**config.model_config, 
                        iterations_per_epoch=config.iterations_per_epoch, 
                        num_epochs=config.num_epochs, 
@@ -203,8 +206,11 @@ def initialise_callbacks(config: TrainingConfig,
                    project=config.wandb_project, 
                    sync_tensorboard=True)
 
+    
+
     callbacks = [tensorboard_callback,
                  checkpoint_callback,
+                 csv_logger, #SF added
                  #                  visualisation_callback
                  ] + ([WandbCallback()] if config.wandb_id is not None else [])
     

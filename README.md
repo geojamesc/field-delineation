@@ -1,27 +1,22 @@
 # NIVA - Automatic field delineation
 
 This repo contains code to generate automatic contours for agricultural parcels,
-given Sentinel-2 images. This code has been used ot generate contours for Lithuania 
+given Sentinel-2 images. This code has been used ot generate contours for Lithuania, Navarra, Spain 
 and the province of Castilla y Leon.
 
-You can find more information about this project in the blog post [Parcel Boundary Detection for CAP](https://medium.com/sentinel-hub/parcel-boundary-detection-for-cap-2a316a77d2f6). 
+This fork allows the workflow to be run locally or on a private cluster.
+You can find more information about the original project in the blog post [Parcel Boundary Detection for CAP](https://medium.com/sentinel-hub/parcel-boundary-detection-for-cap-2a316a77d2f6). 
 
 
 ## Introduction
 
 
-This sub-project is part of the ["New IACS Vision in Action” --- NIVA](https://www.niva4cap.eu/) project that delivers a suite of digital solutions, e-tools and good practices for e-governance and initiates an innovation ecosystem to support further development of IACS that will facilitate data and information flows.
+The original sub-project was part of the ["New IACS Vision in Action” --- NIVA](https://www.niva4cap.eu/) project that delivers a suite of digital solutions, e-tools and good practices for e-governance and initiates an innovation ecosystem to support further development of IACS that will facilitate data and information flows.
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 842009.
 
 Please visit the [website](https://www.niva4cap.eu) for further information. A complete list of the sub-projects made available under the NIVA project can be found on [gitlab](https://gitlab.com/nivaeu/)
 
-## Requirements
-
-The field delineation pipeline uses [SentinelHub](https://www.sentinel-hub.com/) service to download Sentinel-2 imagery, in particular
-using the large-scale [batch processing API](https://docs.sentinel-hub.com/api/latest/api/batch/). The batch processing 
-allows to download images over large Areas of Interest in a very fast and efficient manner. The data is automatically 
-stored in S3 buckets, which need to be [adequately configured](https://docs.sentinel-hub.com/api/latest/api/batch/#aws-s3-bucket-settings). 
 
 ### Installation
 
@@ -42,31 +37,6 @@ In addition, the field delineation workflow uses the following:
 
 The numbered notebooks showcase how to execute the end-to-end workflow.
 
-### AWS set-up
-
-To run the notebooks, the `bucket-name` bucket permission need to be set-up,
-as described below.
-
-```
-bucket_name = "bucket-name"
-aws_access_key_id = ""
-aws_secret_access_key = ""
-region = "eu-central-1"
-```
-
-### Sentinel-Hub credentials
-
-[Sentinel-Hub credentials](apps.sentinel-hub.com/dashboard/#/) need to be added to the download notebook.
-
-### Input data
-
-In order to execute the entire workflow, including training of the deep learning model, the following files are required:
-
- * file with geometry of the AOI (e.g. in `GeoJSON` format); 
- * file with reference GSAA parcel boundaries (e.g. in `ESRI Shapefile` format);
- * the time-interval over which we want to estimate parcel boundaries. Predictions can be made for 
-   sub-intervals of this given time period (e.g. aggregation can be done over an arbitrary time interval as a 
-   post-processing step)
 
 ## Content
 

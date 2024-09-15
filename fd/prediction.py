@@ -11,6 +11,7 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Optional, Tuple
+import math
 
 import numpy as np
 import pandas as pd
@@ -65,8 +66,12 @@ def crop_array(array: np.ndarray, buffer: int) -> np.ndarray:
 def pad_array(array: np.ndarray, buffer: int) -> np.ndarray:
     """ Pad height and width dimensions of a 4D array with a given buffer. Height and with are in 2nd and 3rd dim """
     assert array.ndim == 4, 'Input array of wrong dimension, needs to be 4D B x H x W x C'
+    
+    bufferC = math.ceil(buffer/2) #round in case it's an odd number 
+    bufferF = math.floor(buffer/2)
 
-    return np.pad(array, [(0, 0), (buffer, buffer), (buffer, buffer), (0, 0)], mode='edge')
+    return np.pad(array, [(0, 0), (bufferC, bufferF), (bufferC, bufferF), (0, 0)], mode='edge') #This runs
+    #return np.pad(array, [(0, 0), (buffer, buffer), (buffer, buffer), (0, 0)], mode='edge')
 
 
 def get_tanimoto_loss(from_logits: bool = False) -> TanimotoDistanceLoss:
@@ -111,6 +116,7 @@ def prediction_fn(eop: EOPatch, n_classes: int,
     padded = pad_array(eop[bands_feature], buffer=pad_buffer)
 
     calc_metrics = all([ref for ref in [reference_extent, reference_distance, reference_boundary]])
+
 
     if calc_metrics:
         tanimoto_loss = get_tanimoto_loss()
@@ -172,6 +178,7 @@ def prediction_fn(eop: EOPatch, n_classes: int,
         
     if len(extent_pred) != len(eop.timestamp):
         raise ValueError(f'Error in prediction: not all timeframes have been predicted')
+        
 
     extent_pred = np.concatenate(extent_pred, axis=0)
     boundary_pred = np.concatenate(boundary_pred, axis=0)
